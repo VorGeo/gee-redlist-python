@@ -3,7 +3,7 @@
 import ee
 
 
-def test_authentication() -> dict[str, bool | str]:
+def check_authentication() -> dict[str, bool | str]:
     """
     Test authentication to the Earth Engine Python API.
 
@@ -14,7 +14,7 @@ def test_authentication() -> dict[str, bool | str]:
             - 'project' (str | None): The authenticated project ID if available
 
     Examples:
-        >>> result = test_authentication()
+        >>> result = check_authentication()
         >>> if result['authenticated']:
         ...     print(f"Authenticated with project: {result['project']}")
         ... else:
@@ -72,7 +72,7 @@ def is_authenticated() -> bool:
         ... else:
         ...     print("Please authenticate first")
     """
-    result = test_authentication()
+    result = check_authentication()
     return result['authenticated']
 
 
@@ -82,7 +82,7 @@ def print_authentication_status() -> None:
 
     This is useful for debugging and CLI usage.
     """
-    result = test_authentication()
+    result = check_authentication()
 
     if result['authenticated']:
         print(f"✓ Earth Engine Authentication: SUCCESS")

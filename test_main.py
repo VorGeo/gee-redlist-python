@@ -1,26 +1,45 @@
 import pytest
-import sys
+from typer.testing import CliRunner
 from unittest.mock import patch
-from main import main
+from main import app
+
+runner = CliRunner()
 
 
-def test_main(capsys):
-    """Test that main() prints the expected message and usage."""
-    with patch.object(sys, 'argv', ['main.py']):
-        main()
-    captured = capsys.readouterr()
-    assert "Hello from gee-redlist-python!" in captured.out
-    assert "Usage:" in captured.out
-    assert "--test-auth" in captured.out
+def test_main_no_command():
+    """Test that main app prints the expected message when no command is provided."""
+    result = runner.invoke(app, [])
+    assert result.exit_code == 0
+    assert "Hello from gee-redlist-python!" in result.stdout
+    assert "Use --help to see available commands" in result.stdout
+
+
+def test_main_help():
+    """Test that --help flag shows usage information."""
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "Google Earth Engine tools for IUCN Red List analysis" in result.stdout
+    assert "test-auth" in result.stdout
+
+
+def test_main_version():
+    """Test that --version flag shows version information."""
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert "gee-redlist-python version 0.1.0" in result.stdout
 
 
 @patch('main.print_authentication_status')
-def test_main_with_test_auth_flag(mock_print_auth, capsys):
-    """Test that main() calls print_authentication_status when --test-auth is provided."""
-    with patch.object(sys, 'argv', ['main.py', '--test-auth']):
-        main()
-
-    captured = capsys.readouterr()
-    assert "Hello from gee-redlist-python!" in captured.out
-    assert "Testing Earth Engine authentication..." in captured.out
+def test_test_auth_command(mock_print_auth):
+    """Test that test-auth command calls print_authentication_status."""
+    result = runner.invoke(app, ["test-auth"])
+    assert result.exit_code == 0
+    assert "Testing Earth Engine authentication..." in result.stdout
     mock_print_auth.assert_called_once()
+
+
+def test_test_auth_help():
+    """Test that test-auth command has proper help text."""
+    result = runner.invoke(app, ["test-auth", "--help"])
+    assert result.exit_code == 0
+    assert "Test Earth Engine authentication status" in result.stdout

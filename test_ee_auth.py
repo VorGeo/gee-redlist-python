@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import ee
-from ee_auth import test_authentication, is_authenticated, print_authentication_status
+from ee_auth import check_authentication, is_authenticated, print_authentication_status
 
 
 class TestAuthenticationFunctions:
@@ -16,7 +16,7 @@ class TestAuthenticationFunctions:
         mock_initialize.return_value = None
         mock_get_roots.return_value = [{'id': 'projects/test-project'}]
 
-        result = test_authentication()
+        result = check_authentication()
 
         assert result['authenticated'] is True
         assert 'Successfully authenticated' in result['message']
@@ -30,7 +30,7 @@ class TestAuthenticationFunctions:
         mock_initialize.return_value = None
         mock_get_roots.side_effect = Exception("Cannot retrieve project")
 
-        result = test_authentication()
+        result = check_authentication()
 
         assert result['authenticated'] is True
         assert 'could not retrieve project info' in result['message']
@@ -41,7 +41,7 @@ class TestAuthenticationFunctions:
         """Test authentication fails with EE exception."""
         mock_initialize.side_effect = ee.EEException("Authentication required")
 
-        result = test_authentication()
+        result = check_authentication()
 
         assert result['authenticated'] is False
         assert 'Earth Engine authentication failed' in result['message']
@@ -52,13 +52,13 @@ class TestAuthenticationFunctions:
         """Test authentication fails with generic exception."""
         mock_initialize.side_effect = RuntimeError("Network error")
 
-        result = test_authentication()
+        result = check_authentication()
 
         assert result['authenticated'] is False
         assert 'Authentication error' in result['message']
         assert result['project'] is None
 
-    @patch('ee_auth.test_authentication')
+    @patch('ee_auth.check_authentication')
     def test_is_authenticated_true(self, mock_test_auth):
         """Test is_authenticated returns True when authenticated."""
         mock_test_auth.return_value = {
@@ -69,7 +69,7 @@ class TestAuthenticationFunctions:
 
         assert is_authenticated() is True
 
-    @patch('ee_auth.test_authentication')
+    @patch('ee_auth.check_authentication')
     def test_is_authenticated_false(self, mock_test_auth):
         """Test is_authenticated returns False when not authenticated."""
         mock_test_auth.return_value = {
@@ -80,7 +80,7 @@ class TestAuthenticationFunctions:
 
         assert is_authenticated() is False
 
-    @patch('ee_auth.test_authentication')
+    @patch('ee_auth.check_authentication')
     def test_print_authentication_status_success(self, mock_test_auth, capsys):
         """Test print_authentication_status with successful auth."""
         mock_test_auth.return_value = {
@@ -96,7 +96,7 @@ class TestAuthenticationFunctions:
         assert 'Success' in captured.out
         assert 'test-project' in captured.out
 
-    @patch('ee_auth.test_authentication')
+    @patch('ee_auth.check_authentication')
     def test_print_authentication_status_failure(self, mock_test_auth, capsys):
         """Test print_authentication_status with failed auth."""
         mock_test_auth.return_value = {
@@ -112,7 +112,7 @@ class TestAuthenticationFunctions:
         assert 'Authentication required' in captured.out
         assert 'earthengine authenticate' in captured.out
 
-    @patch('ee_auth.test_authentication')
+    @patch('ee_auth.check_authentication')
     def test_print_authentication_status_no_project(self, mock_test_auth, capsys):
         """Test print_authentication_status with success but no project."""
         mock_test_auth.return_value = {
@@ -142,7 +142,7 @@ class TestAuthenticationIntegration:
         This test is expected to fail in CI environments without credentials,
         but demonstrates the API usage for manual testing.
         """
-        result = test_authentication()
+        result = check_authentication()
 
         # Should return a valid result structure regardless of success
         assert isinstance(result, dict)
