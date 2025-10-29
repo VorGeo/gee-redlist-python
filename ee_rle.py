@@ -85,3 +85,18 @@ def make_eoo(
     )
 
     return eoo_poly
+
+
+def area_km2(
+    eoo_poly: ee.Geometry,
+) -> ee.Number:
+    """
+    Calculate the area of the Extent of Occurrence (EOO) in square kilometers.
+
+    Args:
+        eoo_poly: An ee.Geometry representing the EOO polygon.
+
+    Returns:
+        An ee.Number representing the EOO area in square kilometers.
+    """
+    return eoo_poly.area().divide(1e6)

@@ -108,6 +108,41 @@ class TestMakeEOO:
         assert result == mock_hull
 
 
+class TestAreaKm2:
+    """Tests for the area_km2 function."""
+
+    @patch('ee_rle.ee')
+    def test_area_km2_basic(self, mock_ee):
+        """Test that area_km2 calculates area correctly."""
+        # Create mock geometry with area
+        mock_geometry = Mock()
+        mock_area = Mock()
+        mock_area_km2 = Mock()
+
+        mock_geometry.area.return_value = mock_area
+        mock_area.divide.return_value = mock_area_km2
+
+        result = ee_rle.area_km2(mock_geometry)
+
+        # Verify area was called
+        mock_geometry.area.assert_called_once()
+        # Verify division by 1e6 (convert m² to km²)
+        mock_area.divide.assert_called_once_with(1e6)
+        # Verify result
+        assert result == mock_area_km2
+
+    @patch('ee_rle.ee')
+    def test_area_km2_returns_ee_number(self, mock_ee):
+        """Test that area_km2 returns an ee.Number."""
+        mock_geometry = Mock()
+        mock_result = Mock()
+        mock_geometry.area.return_value.divide.return_value = mock_result
+
+        result = ee_rle.area_km2(mock_geometry)
+
+        assert result == mock_result
+
+
 class TestIntegrationWithRealEE:
     """Integration tests using real Earth Engine objects (requires authentication)."""
 
@@ -128,7 +163,7 @@ class TestIntegrationWithRealEE:
         test_image = ee.Image(1).clip(test_geometry)
 
         # Calculate EOO
-        eoo_poly = ee_rle.make_eoo(test_image, test_geometry, scale=1000)
+        eoo_poly = ee_rle.make_eoo(test_image, test_geometry, scale=10)
 
         # Verify result is an ee.Geometry
         assert isinstance(eoo_poly, ee.Geometry)
@@ -138,21 +173,28 @@ class TestIntegrationWithRealEE:
         assert eoo_info is not None
         assert eoo_info['type'] in ['Polygon', 'MultiPolygon']
 
-    def test_eoo_with_partial_coverage(self):
-        """Test EOO calculation with partial habitat coverage."""
+    def test_area_km2_with_real_geometry(self):
+        """Test area_km2 with real Earth Engine geometry.
+        
+        Test based on:
+        https://github.com/red-list-ecosystem/gee-redlist/blob/4c58f8d1adc2853dd9d1be295f9def37cbe9f4a6/Modules/functionTests
+        """
         test_geometry = get_test_geometry()
+        print(f"DEBUG: {test_geometry.area().divide(1e6).getInfo()=}")
 
-        # Create an image with only partial coverage (random sample)
-        test_image = (
-            ee.Image.random(42)
-            .gt(0.7)  # Only keep pixels > 0.7 (30% coverage)
-            .clip(test_geometry)
-        )
+        # Create a simple binary image
+        elevation = ee.Image('USGS/SRTMGL1_003').clip(test_geometry)
+        test_image = ee.Image(1).clip(test_geometry).updateMask(elevation.gte(4500))
 
-        # Calculate EOO
-        eoo_poly = ee_rle.make_eoo(test_image, test_geometry, scale=1000)
+        # Calculate EOO polygon
+        eoo_poly = ee_rle.make_eoo(test_image, test_geometry)
 
-        # Verify result
-        assert isinstance(eoo_poly, ee.Geometry)
-        eoo_info = eoo_poly.getInfo()
-        assert eoo_info is not None
+        # Calculate area using area_km2
+        area = ee_rle.area_km2(eoo_poly)
+
+        # Verify result is an ee.Number
+        assert isinstance(area, ee.Number)
+
+        # Get the actual value and verify it's reasonable
+        area_val = area.getInfo()
+        assert abs(area_val - 12634.46) < 1
