@@ -28,11 +28,20 @@ def check_authentication() -> dict[str, bool | str]:
         # Try to get the current project
         try:
             # Attempt a simple operation to verify authentication works
-            project = ee.data.getAssetRoots()
+            asset_roots = ee.data.getAssetRoots()
+            project_id = None
+            if asset_roots and len(asset_roots) > 0:
+                # Extract project ID from the first asset root
+                # Asset roots look like: [{'id': 'projects/my-project', ...}]
+                root_id = asset_roots[0].get('id', '')
+                if root_id.startswith('projects/'):
+                    project_id = root_id.split('/', 1)[1]
+                else:
+                    project_id = root_id
             return {
                 'authenticated': True,
                 'message': 'Successfully authenticated to Earth Engine',
-                'project': str(project) if project else None
+                'project': project_id
             }
         except Exception as e:
             # Initialization succeeded but we can't get project info
