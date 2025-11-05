@@ -3,7 +3,7 @@ name = "gee-redlist-python"
 version = "0.1.0"
 description = "Tools for IUCN Red List analysis using Google Earth Engine"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "cartopy>=0.24.0",
     "earthengine-api>=1.6.14",
