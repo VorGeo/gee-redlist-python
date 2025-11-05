@@ -219,7 +219,7 @@ wheels = [
 [[package]]
 name = "gee-redlist-python"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cartopy" },
     { name = "earthengine-api" },

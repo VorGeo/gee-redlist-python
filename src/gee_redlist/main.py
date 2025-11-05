@@ -1,6 +1,6 @@
 import typer
 from typing_extensions import Annotated
-from ee_auth import print_authentication_status
+from gee_redlist.ee_auth import print_authentication_status
 
 app = typer.Typer(
     name="gee-redlist-python",

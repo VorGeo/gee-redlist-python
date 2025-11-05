@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import ee
-import ee_rle
+from gee_redlist import ee_rle
 
 
 # Test geometry coordinates - region in Asia
@@ -23,7 +23,7 @@ def get_test_geometry():
 class TestMakeEOO:
     """Tests for the make_eoo function."""
 
-    @patch('ee_rle.ee')
+    @patch('gee_redlist.ee_rle.ee')
     def test_make_eoo_basic(self, mock_ee):
         """Test that make_eoo calls the correct Earth Engine methods."""
         # Create mock objects for the chain of method calls
@@ -59,7 +59,7 @@ class TestMakeEOO:
         # Verify the result is the convex hull
         assert result == mock_hull
 
-    @patch('ee_rle.ee')
+    @patch('gee_redlist.ee_rle.ee')
     def test_make_eoo_custom_parameters(self, mock_ee):
         """Test make_eoo with custom parameters."""
         mock_image = Mock()
@@ -93,7 +93,7 @@ class TestMakeEOO:
         )
         mock_geometry.convexHull.assert_called_once_with(maxError=10)
 
-    @patch('ee_rle.ee')
+    @patch('gee_redlist.ee_rle.ee')
     def test_make_eoo_returns_geometry(self, mock_ee):
         """Test that make_eoo returns an ee.Geometry object."""
         mock_image = Mock()
@@ -111,7 +111,7 @@ class TestMakeEOO:
 class TestAreaKm2:
     """Tests for the area_km2 function."""
 
-    @patch('ee_rle.ee')
+    @patch('gee_redlist.ee_rle.ee')
     def test_area_km2_basic(self, mock_ee):
         """Test that area_km2 calculates area correctly."""
         # Create mock geometry with area
@@ -131,7 +131,7 @@ class TestAreaKm2:
         # Verify result
         assert result == mock_area_km2
 
-    @patch('ee_rle.ee')
+    @patch('gee_redlist.ee_rle.ee')
     def test_area_km2_returns_ee_number(self, mock_ee):
         """Test that area_km2 returns an ee.Number."""
         mock_geometry = Mock()

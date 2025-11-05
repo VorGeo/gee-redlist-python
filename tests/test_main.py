@@ -1,7 +1,7 @@
 import pytest
 from typer.testing import CliRunner
 from unittest.mock import patch
-from main import app
+from gee_redlist.main import app
 
 runner = CliRunner()
 
@@ -29,7 +29,7 @@ def test_main_version():
     assert "gee-redlist-python version 0.1.0" in result.stdout
 
 
-@patch('main.print_authentication_status')
+@patch('gee_redlist.main.print_authentication_status')
 def test_test_auth_command(mock_print_auth):
     """Test that test-auth command calls print_authentication_status."""
     result = runner.invoke(app, ["test-auth"])
