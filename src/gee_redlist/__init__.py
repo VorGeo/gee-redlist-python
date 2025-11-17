@@ -2,7 +2,7 @@
 
 from gee_redlist.ee_auth import check_authentication, is_authenticated, print_authentication_status
 from gee_redlist.ee_rle import make_eoo, area_km2
-from gee_redlist.map import create_country_map
+from gee_redlist.map import create_country_map, get_utm_epsg
 
 __all__ = [
     "check_authentication",
@@ -11,4 +11,5 @@ __all__ = [
     "make_eoo",
     "area_km2",
     "create_country_map",
+    "get_utm_epsg",
 ]
