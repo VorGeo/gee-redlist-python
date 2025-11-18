@@ -45,7 +45,6 @@ def main():
         edge_color='black',
         edge_width=2.0,
         show_grid=True,
-        show_surrounding_countries=False
     )
     print(f"✓ RGB map saved to: {map_path}")
 

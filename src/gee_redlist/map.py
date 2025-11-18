@@ -89,11 +89,43 @@ def get_utm_proj_without_limits(utm_zone: int, is_south: bool) -> ccrs.Transvers
     return proj
 
 
+def _validate_country_code(country_code: str) -> None:
+    """
+    Validate that the country code is a valid ISO 3166-1 alpha-2 code.
+
+    Parameters
+    ----------
+    country_code : str
+        The ISO 3166-1 alpha-2 country code (must be exactly 2 letters)
+
+    Raises
+    ------
+    TypeError
+        If country_code is not a string
+    ValueError
+        If country_code is not exactly 2 letters
+    """
+    if not isinstance(country_code, str):
+        raise TypeError(
+            f"country_code must be a string, got {type(country_code).__name__}"
+        )
+
+    if not country_code or country_code.isspace():
+        raise ValueError("country_code cannot be empty or whitespace")
+
+    # Strict validation: must be exactly 2 letters (ISO 3166-1 alpha-2)
+    import re
+    if not re.match(r'^[A-Za-z]{2}$', country_code):
+        raise ValueError(
+            f"country_code must be a 2-letter ISO 3166-1 alpha-2 code (e.g., 'US', 'FR', 'JP'). "
+            f"Got: '{country_code}'"
+        )
+
+
 def create_country_map(
     country_code: str,
     output_path: str = None,
     show_stock_img: bool = True,
-    show_surrounding_countries: bool = True,
     show_grid: bool = True,
     show_border: bool = True,
     title: str = None,
@@ -110,13 +142,13 @@ def create_country_map(
     Parameters
     ----------
     country_code : str
-        ISO 3166-1 alpha-2 country code (e.g., 'SG' for Singapore, 'FR' for France, 'BR' for Brazil)
+        ISO 3166-1 alpha-2 country code. Must be exactly 2 letters.
+        Examples: 'SG' (Singapore), 'FR' (France), 'BR' (Brazil), 'US' (United States), 'JP' (Japan)
+        See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 for complete list.
     output_path : str, optional
         Path where the PNG file should be saved. If None, defaults to '{country_code}.png'
     show_stock_img : bool, optional
         Whether to show the world stock image. Default is True.
-    show_surrounding_countries : bool, optional
-        Whether to show labels for surrounding countries. Default is True.
     show_grid : bool, optional
         Whether to show gridlines with lat/lon labels. Default is True.
     show_border : bool, optional
@@ -173,11 +205,22 @@ def create_country_map(
     ...                    clip_ee_image=True)
     'np.png'
     """
+    # Validate country code format
+    _validate_country_code(country_code)
+
     if output_path is None:
         output_path = f"{country_code.lower()}.png"
 
     # Use wkls to obtain the country boundary information by ISO 3166-1 alpha-2 code
-    country_wkb = wkls[country_code.lower()].wkb()
+    try:
+        country_wkb = wkls[country_code.lower()].wkb()
+    except ValueError as e:
+        # Provide a more helpful error message
+        raise ValueError(
+            f"Country code '{country_code}' not found in database. "
+            f"Please use a valid ISO 3166-1 alpha-2 code (e.g., 'US', 'FR', 'JP')."
+        ) from e
+
     country_geometry = shapely.from_wkb(bytes(country_wkb))
 
     # Calculate the most appropriate UTM projection for this country
@@ -308,16 +351,9 @@ def create_country_map(
             clip_ee_image=clip_ee_image
         )
 
-    # Add map features
-    if show_surrounding_countries:
-        ax.add_feature(cfeature.LAND, facecolor='white')
-        ax.add_feature(cfeature.OCEAN, facecolor='lightblue')
-        ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.5, linestyle='-', alpha=0.5)
-    else:
-        # When not showing surrounding countries, show only white background
-        ax.add_feature(cfeature.OCEAN, facecolor='white')
-        ax.add_feature(cfeature.LAND, facecolor='white')
+    # # Add map features
+    # ax.add_feature(cfeature.OCEAN, facecolor='white')
+    # ax.add_feature(cfeature.LAND, facecolor='white')
 
     geometry_kwargs = {
         'alpha': 0.7
@@ -336,67 +372,6 @@ def create_country_map(
         proj,
         **geometry_kwargs
     )
-
-    # # Label surrounding countries that are visible in the extent
-    # if show_surrounding_countries:
-    #     from shapely.geometry import box
-    #     extent_box = box(extent[0], extent[2], extent[1], extent[3])
-
-    #     # Estimate label dimensions in map units (rough approximation)
-    #     # Font size 8 with padding ~0.3 degrees per character
-    #     lon_range = extent[1] - extent[0]
-    #     lat_range = extent[3] - extent[2]
-    #     char_width = lon_range * 0.02  # Approximate width per character
-    #     char_height = lat_range * 0.03  # Approximate height
-
-    #     for idx, country_row in wkls.countries().iterrows():
-    #         print(f"DEBUG: {idx=} {country_row=}")
-    #         country_wkb = wkls[country_row['country']].wkb()
-    #         country_geometry = shapely.from_wkb(bytes(country_wkb))
-            
-    #         # Skip the target country
-
-    #         # Check if country intersects with the map extent
-    #         if country_geometry.intersects(extent_box):
-    #             # Get the centroid for label placement using the visible portion
-    #             try:
-    #                 # Get the intersection of the country with the extent box
-    #                 visible_portion = country_geometry.intersection(extent_box)
-
-    #                 # Calculate centroid of the visible portion
-    #                 if not visible_portion.is_empty:
-    #                     centroid = visible_portion.centroid
-
-    #                     # Verify centroid is within extent (should always be true, but safety check)
-    #                     if (extent[0] <= centroid.x <= extent[1] and
-    #                         extent[2] <= centroid.y <= extent[3]):
-
-    #                         # Estimate label bounding box
-    #                         label_width = 2 * char_width
-    #                         label_height = char_height
-    #                         label_box = box(
-    #                             centroid.x - label_width / 2,
-    #                             centroid.y - label_height / 2,
-    #                             centroid.x + label_width / 2,
-    #                             centroid.y + label_height / 2
-    #                         )
-
-    #                         # Check if label box fits within the visible portion of the country
-    #                         if visible_portion.contains(label_box):
-    #                             ax.text(
-    #                                 centroid.x, centroid.y,
-    #                                 country['name'].upper(),
-    #                                 transform=proj,
-    #                                 fontsize=8,
-    #                                 ha='center',
-    #                                 va='center',
-    #                                 color='#333333',
-    #                                 weight='normal',
-    #                                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
-    #                             )
-    #             except:
-    #                 # Skip if centroid calculation fails (e.g., for invalid geometries)
-    #                 continue
 
     # Add gridlines
     if show_grid:
