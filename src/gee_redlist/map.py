@@ -1,18 +1,18 @@
 """Generate PNG maps of countries using cartopy."""
 
 import matplotlib
-# matplotlib.use('Agg') 
+matplotlib.use('Agg') 
 
+import ee
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from cartopy.io.shapereader import natural_earth
-import cartopy.io.shapereader as shpreader
-import requests
-import rasterio
-from rasterio.io import MemoryFile
 import numpy as np
+import pyproj
+import requests
+from rasterio.io import MemoryFile
 import shapely
+from shapely.ops import transform as shapely_transform
 import wkls
 
 
@@ -92,6 +92,7 @@ def get_utm_proj_without_limits(utm_zone: int, is_south: bool) -> ccrs.Transvers
 def create_country_map(
     country_code: str,
     output_path: str = None,
+    show_stock_img: bool = True,
     show_surrounding_countries: bool = True,
     show_grid: bool = True,
     show_border: bool = True,
@@ -112,6 +113,8 @@ def create_country_map(
         ISO 3166-1 alpha-2 country code (e.g., 'SG' for Singapore, 'FR' for France, 'BR' for Brazil)
     output_path : str, optional
         Path where the PNG file should be saved. If None, defaults to '{country_code}.png'
+    show_stock_img : bool, optional
+        Whether to show the world stock image. Default is True.
     show_surrounding_countries : bool, optional
         Whether to show labels for surrounding countries. Default is True.
     show_grid : bool, optional
@@ -193,27 +196,20 @@ def create_country_map(
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(1, 1, 1, projection=proj)
 
-    # Show the world stock image for reference
-    ax.stock_img(alpha=1.0)
+    if show_stock_img:
+        # Show the world stock image for reference
+        ax.stock_img(alpha=1.0)
 
-    # Set map extent based on country bounds with some padding
-    # target_geometry is in WGS84, so we need to transform bounds to UTM
-    from shapely.ops import transform as shapely_transform
-    import pyproj
-
-    # Create transformer from WGS84 to UTM
+    # Transform the countrygeometry to UTM
     wgs84_to_utm = pyproj.Transformer.from_crs(
         "EPSG:4326",  # WGS84
         f"EPSG:{utm_epsg}",  # UTM
         always_xy=True
     )
-
-    # Transform the geometry to UTM
     country_geometry_utm = shapely_transform(wgs84_to_utm.transform, country_geometry)
 
     # Get bounds in UTM coordinates (meters)
     bounds = country_geometry_utm.bounds
-    print(f"DEBUG: UTM bounds [minx, miny, maxx, maxy]={bounds}")
 
     # Calculate padding as a percentage of the extent (5% on each side)
     x_range = bounds[2] - bounds[0]
@@ -227,13 +223,10 @@ def create_country_map(
         bounds[1] - padding_y, # miny
         bounds[3] + padding_y # maxy
     ]
-    print(f"DEBUG: extent [minx, maxx, miny, maxy]={extent}")
     ax.set_extent(extent, crs=proj)
 
     # Add Earth Engine image as basemap if provided
     if ee_image is not None:
-        
-        import ee
 
         # Create a bounding box for the EE image request [xMin, yMin, xMax, yMax]
         ee_region = ee.Geometry.Rectangle(
@@ -245,8 +238,9 @@ def create_country_map(
         def add_ee_image(
             ee_image: ee.Image,
             ee_region: ee.Geometry,
+            scale: float = 10000,
             clip_ee_image: bool = False,
-            ee_vis_params: dict = None) -> np.ma.MaskedArray:
+            ) -> np.ma.MaskedArray:
             """Download an Earth Engine image and return a numpy masked array."""
         
             # Clip the image to country geometry if requested
@@ -260,146 +254,59 @@ def create_country_map(
             else:
                 ee_image_clipped = ee_image
 
-            # Default visualization parameters if not provided
-            if ee_vis_params is None:
-                ee_vis_params = {}
-
-            # Apply visualization to the image if vis params provided
-            # getDownloadURL requires visualize() for floating-point data
-            if ee_vis_params:
-                ee_image_visualized = ee_image_clipped.visualize(**ee_vis_params)
-            else:
-                ee_image_visualized = ee_image_clipped
-
-            scale = 10000
-
             # Get the image URL from Earth Engine as GeoTIFF
             # Use getDownloadURL with the appropriate UTM projection for this country
             # NOTE that getDownloadURL does not return a GeoTIFF with noData, so the mask needs to be
             # requested separately
+            crs = f'EPSG:{utm_epsg}'
+            crs_transform = [scale, 0, extent[0], 0, scale, extent[2]]
             url = ee_image_clipped.getDownloadURL({
                 'region': ee_region,
                 'format': 'GEO_TIFF',
-                'crs': f'EPSG:{utm_epsg}',  # Use calculated UTM zone
-                'crs_transform': [scale, 0, extent[0], 0, scale, extent[2]],
+                'crs': crs,
+                'crs_transform': crs_transform,
             })
-            print(f"DEBUG: {url=}")
+            print(f"Downloading Earth Engine image...")
+            response = requests.get(url, timeout=300)  # 5 minute timeout
+            print(f"Downloaded image {len(response.content) / 1024 / 1024:.2f} MB")
 
             url_mask = ee_image_clipped.mask().getDownloadURL({
                 'region': ee_region,
                 'format': 'GEO_TIFF',
-                'crs': f'EPSG:{utm_epsg}',  # Use calculated UTM zone
-                'crs_transform': [scale, 0, extent[0], 0, scale, extent[2]],
+                'crs': crs,
+                'crs_transform': crs_transform,
             })
-            print(f"DEBUG: {url_mask=}")
+            response_mask = requests.get(url_mask, timeout=300)  # 5 minute timeout
+            print(f"Downloaded mask {len(response_mask.content) / 1024 / 1024:.2f} MB")
 
-            # Fetch the GeoTIFF
-            print(f"Downloading Earth Engine image from: {url[:100]}...")
-            try:
-                response = requests.get(url, timeout=300)  # 5 minute timeout
-                print(f"DEBUG: {response.status_code=}")
-                print(f"Downloaded {len(response.content) / 1024 / 1024:.2f} MB")
+            # Open with rasterio from memory
+            with MemoryFile(response.content) as memfile:
+                with memfile.open() as dataset:
+                    img_array_rgb = dataset.read()  # Shape: (3, height, width)
+                    # reorder bands to be in the correct order for matplotlib
+                    img_array_rgb = np.moveaxis(img_array_rgb, 0, -1)  # Shape: (height, width, bands)
+                    # Get georeferencing from the raster
+                    bounds = dataset.bounds
 
-                response_mask = requests.get(url_mask, timeout=300)  # 5 minute timeout
-                print(f"DEBUG: {response_mask.status_code=}")
-                print(f"Downloaded {len(response_mask.content) / 1024 / 1024:.2f} MB")
+            with MemoryFile(response_mask.content) as memfile_mask:
+                with memfile_mask.open() as dataset_mask:   
+                    img_array_mask = dataset_mask.read()  # Shape: (1, height, width)
+                    # reorder bands to be in the correct order for matplotlib                      
+                    img_array_mask = np.moveaxis(img_array_mask, 0, -1)  # Shape: (height, width, bands)
 
-                # Open with rasterio from memory
-                with MemoryFile(response.content) as memfile:
-                    with memfile.open() as dataset:
-                        with MemoryFile(response_mask.content) as memfile_mask:
-                            with memfile_mask.open() as dataset_mask:
-                                # Read the image data
-                                # For visualized images (RGB): read all bands
-                                num_bands = dataset.count
-                                num_bands_mask = dataset_mask.count
-
-                                
-                                img_array_rgb = dataset.read()  # Shape: (3, height, width)
-                                
-                                img_array_mask = dataset_mask.read()  # Shape: (1, height, width)
-                                # img_array_mask = np.ceil(img_array_mask[1,:,:])
-
-
-                                # reorder bands to be in the correct order for matplotlib
-                                img_array_rgb = np.moveaxis(img_array_rgb, 0, -1)
-                                img_array_mask = np.moveaxis(img_array_mask, 0, -1)  # Shape: (height, width, bands)
-
-                                # img_array_masked = np.ma.masked_values(img_array, 0.0)
-
-                                # Get georeferencing from the raster
-                                bounds = dataset.bounds
-
-                                # Display the image with rasterio-derived extent
-                                # ax.imshow(
-                                #     img_array_rgb,
-                                #     extent=[bounds.left, bounds.right, bounds.bottom, bounds.top],
-                                #     origin='upper',
-                                #     transform=proj,
-                                #     alpha=img_array_mask,
-                                #     # zorder=0  # Put EE image at the back
-                                # )
-
-                                cmap = plt.cm.gray.copy()
-                                cmap.set_bad(alpha=0.0)
-
-                                ax.imshow(
-                                    # np.ma.masked_where(img_array_rgb <= 0, img_array_rgb),
-                                    np.ma.masked_where(img_array_mask <= 0, img_array_rgb),
-                                    extent=[bounds.left, bounds.right, bounds.bottom, bounds.top],
-                                    origin='upper',
-                                    transform=proj,
-                                    cmap=cmap,
-                                    # zorder=0  # Put EE image at the back
-                                )
-# Works
-# np.ma.masked_where(img_array_rgb <= 0, img_array_rgb) =
-# masked_array(
-#   data=[[[--],
-#          [--],
-#          [168.048095703125],
-#          [263.7174987792969]],
-
-#         [[--],
-#          [433.71881103515625],
-#          [17.123794555664062],
-#          [--]],
-
-#         [[--],
-#          [2229.978759765625],
-#          [401.9034118652344],
-#          [178.26007080078125]]],
-#   mask=[[[ True],
-#          [ True],
-#          [False],
-#          [False]],
-
-#         [[ True],
-#          [False],
-#          [False],
-#          [ True]],
-
-#         [[ True],
-#          [False],
-#          [False],
-#          [False]]],
-#   fill_value=np.float64(1e+20),
-#   dtype=float32)
-
-
-            except requests.exceptions.Timeout:
-                print("Warning: Earth Engine image download timed out. Skipping basemap layer.")
-            except Exception as e:
-                print(f"Warning: Failed to download or display Earth Engine image: {e}")
-
+            ax.imshow(
+                np.ma.masked_where(img_array_mask <= 0, img_array_rgb),
+                extent=[bounds.left, bounds.right, bounds.bottom, bounds.top],
+                origin='upper',
+                transform=proj,
+                cmap=plt.cm.gray,
+            )
         add_ee_image(
             ee_image,
             ee_region,
-            clip_ee_image,
-            ee_vis_params
+            scale=max(x_range, y_range) / (150 * 4),
+            clip_ee_image=clip_ee_image
         )
-        
-
 
     # Add map features
     if show_surrounding_countries:
@@ -442,18 +349,19 @@ def create_country_map(
     #     char_width = lon_range * 0.02  # Approximate width per character
     #     char_height = lat_range * 0.03  # Approximate height
 
-    #     for country in countries:
+    #     for idx, country_row in wkls.countries().iterrows():
+    #         print(f"DEBUG: {idx=} {country_row=}")
+    #         country_wkb = wkls[country_row['country']].wkb()
+    #         country_geometry = shapely.from_wkb(bytes(country_wkb))
+            
     #         # Skip the target country
-    #         country_name_attr = country.attributes.get('NAME', '')
-    #         if country_name_attr == target_name:
-    #             continue
 
     #         # Check if country intersects with the map extent
-    #         if country.geometry.intersects(extent_box):
+    #         if country_geometry.intersects(extent_box):
     #             # Get the centroid for label placement using the visible portion
     #             try:
     #                 # Get the intersection of the country with the extent box
-    #                 visible_portion = country.geometry.intersection(extent_box)
+    #                 visible_portion = country_geometry.intersection(extent_box)
 
     #                 # Calculate centroid of the visible portion
     #                 if not visible_portion.is_empty:
@@ -464,7 +372,7 @@ def create_country_map(
     #                         extent[2] <= centroid.y <= extent[3]):
 
     #                         # Estimate label bounding box
-    #                         label_width = len(country_name_attr) * char_width
+    #                         label_width = 2 * char_width
     #                         label_height = char_height
     #                         label_box = box(
     #                             centroid.x - label_width / 2,
@@ -477,7 +385,7 @@ def create_country_map(
     #                         if visible_portion.contains(label_box):
     #                             ax.text(
     #                                 centroid.x, centroid.y,
-    #                                 country_name_attr.upper(),
+    #                                 country['name'].upper(),
     #                                 transform=proj,
     #                                 fontsize=8,
     #                                 ha='center',

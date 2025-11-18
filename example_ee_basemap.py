@@ -14,42 +14,31 @@ def main():
     ee.Initialize(project=google_cloud_project)
     print("✓ Earth Engine initialized")
 
-    # # Example 1: Elevation basemap for Nepal
-    # print("\nCreating elevation map of Nepal...")
-    # elevation = ee.Image('USGS/SRTMGL1_003')
-    # nepal_path = create_country_map(
-    #     'Nepal',
-    #     'temp/nepal_elevation.png',
-    #     ee_image=elevation,
-    #     ee_vis_params={
-    #         'min': 0,
-    #         'max': 8000,
-    #         'palette': ['black', 'white']
-    #     },
-    #     fill_color='none',  # Make country transparent to see elevation
-    #     show_border=True,
-    #     edge_color='red',
-    #     edge_width=2.0,
-    #     title='Nepal - Elevation Map'
-    # )
-    # print(f"✓ Nepal elevation map saved to: {nepal_path}")
+    # Example 1: Elevation basemap for Nepal
+    print("\nCreating elevation map of Nepal...")
+    elevation = ee.Image('USGS/SRTMGL1_003')
+    nepal_path = create_country_map(
+        'NP',
+        'temp/nepal_elevation.png',
+        ee_image=elevation,
+        fill_color='none',  # Make country transparent to see elevation
+        show_border=True,
+        edge_color='red',
+        edge_width=2.0,
+        title='Nepal - Elevation Map'
+    )
+    print(f"✓ Nepal elevation map saved to: {nepal_path}")
 
-    # Example 3
+    # Example 2
     print("\nTry creating topography map...")
 
     dem_glo30 = ee.ImageCollection("COPERNICUS/DEM/GLO30").select('DEM').mosaic()
     rgb_image = dem_glo30
 
     map_path = create_country_map(
-        country_code='MM',
-        output_path='temp/myanmar_rgb.png',
+        country_code='MX',
+        output_path='temp/mexico_rgb.png',
         ee_image=rgb_image,
-        ee_vis_params={
-            'min': 0,
-            'max': 3000,
-            'palette': ['red', 'blue'],
-            # 'gamma': 2.0
-        },
         clip_ee_image=True,
         fill_color='none',
         show_border=True,
