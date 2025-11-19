@@ -1,6 +1,7 @@
 import typer
 from typing_extensions import Annotated
 from gee_redlist.ee_auth import print_authentication_status
+from gee_redlist import __version__
 
 app = typer.Typer(
     name="gee-redlist-python",
@@ -26,7 +27,7 @@ def main(
 ):
     """Main entry point for gee-redlist-python CLI."""
     if version:
-        print("gee-redlist-python version 0.1.0")
+        print(f"gee-redlist-python version {__version__}")
         raise typer.Exit()
 
     if ctx.invoked_subcommand is None:
