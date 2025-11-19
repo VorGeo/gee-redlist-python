@@ -51,13 +51,11 @@ def main():
             'edgecolor': 'black',
             'linewidth': 2.0,
         },
-        show_grid=True,
     )
     print(f"✓ RGB map saved to: {map_path}")
 
     # Example 3
     print("\nCreating ecosystem map...")
-
 
     ee_image = (
         ee.Image('projects/goog-rle-assessments/assets/mm_ecosys_v7b')
@@ -70,8 +68,12 @@ def main():
         ee_image=ee_image,
         clip_ee_image=True,
         show_border=True,
+        geometry_kwargs={
+            'edgecolor': 'grey',
+            'linewidth': 0.5,
+        },
         image_cmap=mpl.colors.ListedColormap(['red']),
-
+        dpi=600,
     )
     print(f"✓ RGB map saved to: {map_path}")
 

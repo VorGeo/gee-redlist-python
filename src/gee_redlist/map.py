@@ -126,12 +126,12 @@ def create_country_map(
     country_code: str,
     output_path: str = None,
     show_stock_img: bool = False,
-    show_grid: bool = True,
     show_border: bool = True,
     title: str = None,
     geometry_kwargs: dict = {},
     ee_image = None,
     clip_ee_image: bool = False,
+    dpi: int = 150,
     image_cmap: str = None,
     image_vmin: float = 0,
     image_vmax: float = 1,
@@ -149,8 +149,6 @@ def create_country_map(
         Path where the PNG file should be saved. If None, defaults to '{country_code}.png'
     show_stock_img : bool, optional
         Whether to show the world stock image. Default is True.
-    show_grid : bool, optional
-        Whether to show gridlines with lat/lon labels. Default is True.
     show_border : bool, optional
         Whether to show a border around the target country. Default is True.
     title : str, optional
@@ -179,8 +177,6 @@ def create_country_map(
     'maps/france_map.png'
     >>> create_country_map('BR', show_surrounding_countries=False)
     'br.png'
-    >>> create_country_map('KE', show_grid=False, show_border=False, title='Kenya Wildlife Regions')
-    'ke.png'
     """
     # Validate country code format
     _validate_country_code(country_code)
@@ -332,8 +328,8 @@ def create_country_map(
                 cmap=image_cmap
             )
         
-        # Set the scale for a 4 inch 150 dpi image
-        scale = max(x_range, y_range) / (150 * 4)
+        image_dimension_pixels = dpi * 4
+        scale = max(x_range, y_range) / image_dimension_pixels
 
         add_ee_image(
             ee_image,
@@ -356,37 +352,10 @@ def create_country_map(
             **geometry_kwargs
         )
 
-    # Add gridlines
-    if show_grid:
-        # Use matplotlib's native grid for UTM projections
-        # This displays coordinates in meters (UTM's native units)
-        ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5, color='gray')
-
-        # Set reasonable number of ticks
-        from matplotlib.ticker import MaxNLocator, FuncFormatter
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
-
-        # Format tick labels as kilometers (convert from meters)
-        def format_km(x, pos):
-            return f'{x/1000:.0f}'
-
-        km_formatter = FuncFormatter(format_km)
-        ax.xaxis.set_major_formatter(km_formatter)
-        ax.yaxis.set_major_formatter(km_formatter)
-
-        # Add axis labels to clarify units
-        hemisphere = 'S' if is_south else 'N'
-        ax.set_xlabel(f'Easting (km) - UTM Zone {utm_zone}{hemisphere}', fontsize=10)
-        ax.set_ylabel('Northing (km)', fontsize=10)
-
-        # Style the tick labels for better readability
-        ax.tick_params(labelsize=9, colors='#333333')
-    else:
-        # When grid is off, remove the axes frame/border
-        # For cartopy GeoAxes, we need to set the spines to invisible
-        for spine in ax.spines.values():
-            spine.set_visible(False)
+    # Remove the axes frame/border
+    # For cartopy GeoAxes, we need to set the spines to invisible
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 
     if title:  # Only add title if not empty string
         plt.title(title, fontsize=16, fontweight='bold')
@@ -394,8 +363,8 @@ def create_country_map(
     # plt.show()
 
     # Save the figure
-    # plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 
     return output_path
