@@ -125,16 +125,16 @@ def _validate_country_code(country_code: str) -> None:
 def create_country_map(
     country_code: str,
     output_path: str = None,
-    show_stock_img: bool = True,
+    show_stock_img: bool = False,
     show_grid: bool = True,
     show_border: bool = True,
     title: str = None,
-    fill_color: str = None,
-    edge_color: str = 'black',
-    edge_width: float = 1.5,
+    geometry_kwargs: dict = {},
     ee_image = None,
-    ee_vis_params: dict = None,
-    clip_ee_image: bool = False
+    clip_ee_image: bool = False,
+    image_cmap: str = None,
+    image_vmin: float = 0,
+    image_vmax: float = 1,
 ) -> str:
     """
     Create a PNG map of a specified country.
@@ -155,21 +155,12 @@ def create_country_map(
         Whether to show a border around the target country. Default is True.
     title : str, optional
         Custom title for the map. If None, defaults to 'Map of {country_name}'.
-    fill_color : str, optional
-        Color to fill the target country. Default is None (uses 'grey').
-        Accepts any matplotlib color (named colors, hex codes, RGB tuples).
-    edge_color : str, optional
-        Color of the border around the target country. Default is 'black'.
-        Only used if show_border is True.
-    edge_width : float, optional
-        Width of the border around the target country. Default is 1.5.
-        Only used if show_border is True.
+    geometry_kwargs : dict, optional
+        Keyword arguments to pass to the add_geometries method.
+        Example: {'facecolor': 'none', 'edgecolor': 'black', 'linewidth': 0.5}
     ee_image : ee.Image, optional
         An Earth Engine image to use as a basemap under the cartopy layers.
         If provided, the image will be rendered first, then cartopy layers on top.
-    ee_vis_params : dict, optional
-        Visualization parameters for the Earth Engine image.
-        Example: {'min': 0, 'max': 3000, 'palette': ['blue', 'green', 'red']}
     clip_ee_image : bool, optional
         Whether to clip the Earth Engine image to the country geometry.
         If True, only the portion of the image within the country borders is shown.
@@ -190,20 +181,6 @@ def create_country_map(
     'br.png'
     >>> create_country_map('KE', show_grid=False, show_border=False, title='Kenya Wildlife Regions')
     'ke.png'
-    >>> create_country_map('JP', fill_color='#ff6b6b', edge_color='darkred', edge_width=2.0)
-    'jp.png'
-    >>> create_country_map('AU', fill_color='green', show_border=False)
-    'au.png'
-    >>> import ee
-    >>> ee.Initialize()
-    >>> elevation = ee.Image('USGS/SRTMGL1_003')
-    >>> create_country_map('NP', ee_image=elevation,
-    ...                    ee_vis_params={'min': 0, 'max': 8000, 'palette': ['blue', 'green', 'red']})
-    'np.png'
-    >>> create_country_map('NP', ee_image=elevation,
-    ...                    ee_vis_params={'min': 0, 'max': 8000, 'palette': ['blue', 'green', 'red']},
-    ...                    clip_ee_image=True)
-    'np.png'
     """
     # Validate country code format
     _validate_country_code(country_code)
@@ -283,6 +260,7 @@ def create_country_map(
             ee_region: ee.Geometry,
             scale: float = 10000,
             clip_ee_image: bool = False,
+            image_cmap: str = None,
             ) -> np.ma.MaskedArray:
             """Download an Earth Engine image and return a numpy masked array."""
         
@@ -325,53 +303,58 @@ def create_country_map(
             # Open with rasterio from memory
             with MemoryFile(response.content) as memfile:
                 with memfile.open() as dataset:
-                    img_array_rgb = dataset.read()  # Shape: (3, height, width)
+                    img_array = dataset.read()  # Shape: (1, height, width)
                     # reorder bands to be in the correct order for matplotlib
-                    img_array_rgb = np.moveaxis(img_array_rgb, 0, -1)  # Shape: (height, width, bands)
+                    img_array = np.moveaxis(img_array, 0, -1)  # Shape: (height, width, bands)
                     # Get georeferencing from the raster
                     bounds = dataset.bounds
 
             with MemoryFile(response_mask.content) as memfile_mask:
                 with memfile_mask.open() as dataset_mask:   
                     img_array_mask = dataset_mask.read()  # Shape: (1, height, width)
+                    img_array_mask = img_array_mask.astype(np.uint8)
                     # reorder bands to be in the correct order for matplotlib                      
                     img_array_mask = np.moveaxis(img_array_mask, 0, -1)  # Shape: (height, width, bands)
 
+            if image_cmap is None:
+                if np.all((img_array == 0) | (img_array == 1)):
+                    image_cmap='binary'
+                else:
+                    image_cmap='grey'
+
             ax.imshow(
-                np.ma.masked_where(img_array_mask <= 0, img_array_rgb),
+                np.ma.masked_where(img_array_mask == 0, img_array),
                 extent=[bounds.left, bounds.right, bounds.bottom, bounds.top],
                 origin='upper',
                 transform=proj,
-                cmap=plt.cm.gray,
+                vmin=image_vmin,
+                vmax=image_vmax,
+                cmap=image_cmap
             )
+        
+        # Set the scale for a 4 inch 150 dpi image
+        scale = max(x_range, y_range) / (150 * 4)
+
         add_ee_image(
             ee_image,
             ee_region,
-            scale=max(x_range, y_range) / (150 * 4),
-            clip_ee_image=clip_ee_image
+            scale=scale,
+            clip_ee_image=clip_ee_image,
+            image_cmap=image_cmap
         )
 
     # # Add map features
     # ax.add_feature(cfeature.OCEAN, facecolor='white')
     # ax.add_feature(cfeature.LAND, facecolor='white')
 
-    geometry_kwargs = {
-        'alpha': 0.7
-    }
-    if fill_color:
-        geometry_kwargs['facecolor'] = fill_color
-    else:
-        geometry_kwargs['facecolor'] = 'white'
-    if edge_color:
-        geometry_kwargs['edgecolor'] = edge_color
-    if edge_width:
-        geometry_kwargs['linewidth'] = edge_width
  
-    ax.add_geometries(
-        [country_geometry_utm],
-        proj,
-        **geometry_kwargs
-    )
+    if show_border:
+        geometry_kwargs.setdefault("facecolor", 'none')
+        ax.add_geometries(
+            [country_geometry_utm],
+            proj,
+            **geometry_kwargs
+        )
 
     # Add gridlines
     if show_grid:

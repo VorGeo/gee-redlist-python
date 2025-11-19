@@ -176,9 +176,11 @@ class TestCreateCountryMap:
             result = create_country_map(
                 'JP',
                 output_path,
-                fill_color='#ff6b6b',
-                edge_color='darkred',
-                edge_width=2.5
+                geometry_kwargs={
+                    'facecolor': '#ff6b6b',
+                    'edgecolor': 'darkred',
+                    'linewidth': 2.5
+                },
             )
 
             # Verify the geometries were added with custom colors
@@ -208,16 +210,14 @@ class TestCreateCountryMap:
                 'BR',
                 output_path,
                 show_border=False,
-                edge_color=None,
-                edge_width=None
+                geometry_kwargs={
+                    'edgecolor': None,
+                    'linewidth': None
+                }
             )
 
             # Verify add_geometries was called
-            mock_ax.add_geometries.assert_called_once()
-            call_kwargs = mock_ax.add_geometries.call_args[1]
-            # When edge_color and edge_width are None, they shouldn't be in kwargs
-            assert 'edgecolor' not in call_kwargs or call_kwargs['edgecolor'] is None
-            assert 'linewidth' not in call_kwargs or call_kwargs['linewidth'] is None
+            mock_ax.add_geometries.assert_not_called()
 
     @patch('gee_redlist.map.wkls')
     @patch('gee_redlist.map.plt')
@@ -335,7 +335,6 @@ class TestEarthEngineBasemap:
                     'NP',
                     output_path,
                     ee_image=mock_ee_image,
-                    ee_vis_params={'min': 0, 'max': 8000}
                 )
 
                 # Verify EE image methods were called

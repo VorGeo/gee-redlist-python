@@ -3,6 +3,7 @@
 import ee
 from gee_redlist.map import create_country_map
 import os
+import matplotlib as mpl
 
 def main():
     """Generate example maps with Earth Engine imagery as basemaps."""
@@ -21,10 +22,13 @@ def main():
         'NP',
         'temp/nepal_elevation.png',
         ee_image=elevation,
-        fill_color='none',  # Make country transparent to see elevation
+        image_vmin=0,
+        image_vmax=8000,
         show_border=True,
-        edge_color='red',
-        edge_width=2.0,
+        geometry_kwargs={
+            'edgecolor': 'red',
+            'linewidth': 1.0,
+        },
         title='Nepal - Elevation Map'
     )
     print(f"✓ Nepal elevation map saved to: {nepal_path}")
@@ -36,15 +40,38 @@ def main():
     rgb_image = dem_glo30
 
     map_path = create_country_map(
-        country_code='MX',
-        output_path='temp/mexico_rgb.png',
+        country_code='MM',
+        output_path='temp/myanmar_rgb.png',
         ee_image=rgb_image,
+        image_vmin=0,
+        image_vmax=1000,
         clip_ee_image=True,
-        fill_color='none',
         show_border=True,
-        edge_color='black',
-        edge_width=2.0,
+        geometry_kwargs={
+            'edgecolor': 'black',
+            'linewidth': 2.0,
+        },
         show_grid=True,
+    )
+    print(f"✓ RGB map saved to: {map_path}")
+
+    # Example 3
+    print("\nCreating ecosystem map...")
+
+
+    ee_image = (
+        ee.Image('projects/goog-rle-assessments/assets/mm_ecosys_v7b')
+          .eq(37).selfMask()
+    )
+    map_path = 'temp/myanmar_map.png'
+    create_country_map(
+        country_code='MM',
+        output_path=map_path,
+        ee_image=ee_image,
+        clip_ee_image=True,
+        show_border=True,
+        image_cmap=mpl.colors.ListedColormap(['red']),
+
     )
     print(f"✓ RGB map saved to: {map_path}")
 
