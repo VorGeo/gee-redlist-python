@@ -18,7 +18,7 @@ def main():
             .eq(37).selfMask()
         )
 
-    eoo_polygon = make_eoo(ee_image, scale=10000)
+    eoo_polygon = make_eoo(ee_image)
     print(f'EOO area: {area_km2(eoo_polygon).getInfo()} km²')
 
 if __name__ == "__main__":

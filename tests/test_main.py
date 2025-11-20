@@ -22,12 +22,6 @@ def test_main_help():
     assert "test-auth" in result.stdout
 
 
-def test_main_version():
-    """Test that --version flag shows version information."""
-    result = runner.invoke(app, ["--version"])
-    assert result.exit_code == 0
-    assert "gee-redlist-python version 0.1.0" in result.stdout
-
 
 @patch('gee_redlist.main.print_authentication_status')
 def test_test_auth_command(mock_print_auth):

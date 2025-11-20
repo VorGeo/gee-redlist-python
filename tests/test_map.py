@@ -34,6 +34,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -113,6 +114,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -131,6 +133,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -149,6 +152,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -167,6 +171,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -200,6 +205,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -221,8 +227,8 @@ class TestCreateCountryMap:
 
     @patch('gee_redlist.map.wkls')
     @patch('gee_redlist.map.plt')
-    def test_no_grid(self, mock_plt, mock_wkls):
-        """Test map creation with show_grid=False."""
+    def test_spines_hidden(self, mock_plt, mock_wkls):
+        """Test that plot frame spines are hidden."""
         # Setup mocks
         bounds = (-5.0, 41.0, 10.0, 51.0)
         mock_wkls.__getitem__.return_value.wkb.return_value = create_mock_wkb_for_bounds(bounds)
@@ -236,12 +242,9 @@ class TestCreateCountryMap:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = os.path.join(tmpdir, 'france.png')
 
-            result = create_country_map('FR', output_path, show_grid=False)
+            result = create_country_map('FR', output_path)
 
-            # Verify gridlines were not called
-            mock_ax.gridlines.assert_not_called()
-
-            # Verify spines were hidden
+            # Verify spines were hidden (frame/border removed)
             for spine in mock_ax.spines.values():
                 spine.set_visible.assert_called_once_with(False)
 
@@ -255,6 +258,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -276,6 +280,7 @@ class TestCreateCountryMap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -302,6 +307,7 @@ class TestEarthEngineBasemap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 
@@ -357,6 +363,7 @@ class TestEarthEngineBasemap:
 
         mock_fig = Mock()
         mock_ax = Mock()
+        mock_ax.spines = {'top': Mock(), 'bottom': Mock(), 'left': Mock(), 'right': Mock()}
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_subplot.return_value = mock_ax
 

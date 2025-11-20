@@ -48,7 +48,7 @@ class TestMakeEOO:
         # Verify the chain of calls
         mock_image.updateMask.assert_called_once_with(1)
         mock_masked.reduceToVectors.assert_called_once_with(
-            scale=1,
+            crs=ee_rle.get_default_ee_projection(),
             geometry=mock_geo,
             geometryType='polygon',
             bestEffort=True
@@ -79,14 +79,13 @@ class TestMakeEOO:
         result = ee_rle.make_eoo(
             mock_image,
             mock_geo,
-            scale=30,
             max_error=10,
             best_effort=False
         )
 
         # Verify custom parameters were passed correctly
         mock_masked.reduceToVectors.assert_called_once_with(
-            scale=30,
+            crs=ee_rle.get_default_ee_projection(),
             geometry=mock_geo,
             geometryType='polygon',
             bestEffort=False
@@ -163,7 +162,7 @@ class TestIntegrationWithRealEE:
         test_image = ee.Image(1).clip(test_geometry)
 
         # Calculate EOO
-        eoo_poly = ee_rle.make_eoo(test_image, test_geometry, scale=10)
+        eoo_poly = ee_rle.make_eoo(test_image, test_geometry)
 
         # Verify result is an ee.Geometry
         assert isinstance(eoo_poly, ee.Geometry)
@@ -180,14 +179,21 @@ class TestIntegrationWithRealEE:
         https://github.com/red-list-ecosystem/gee-redlist/blob/4c58f8d1adc2853dd9d1be295f9def37cbe9f4a6/Modules/functionTests
         """
         test_geometry = get_test_geometry()
-        print(f"DEBUG: {test_geometry.area().divide(1e6).getInfo()=}")
 
         # Create a simple binary image
         elevation = ee.Image('USGS/SRTMGL1_003').clip(test_geometry)
         test_image = ee.Image(1).clip(test_geometry).updateMask(elevation.gte(4500))
 
+        # Use a custom projection that matches JavaScript test at
+        # https://github.com/red-list-ecosystem/gee-redlist/blob/4c58f8d1adc2853dd9d1be295f9def37cbe9f4a6/Modules/functionTests
+        proj = ee.Projection("EPSG:4326").atScale(1)
+
         # Calculate EOO polygon
-        eoo_poly = ee_rle.make_eoo(test_image, test_geometry)
+        eoo_poly = ee_rle.make_eoo(
+            class_img=test_image,
+            geo=test_geometry,
+            projection=proj
+        )
 
         # Calculate area using area_km2
         area = ee_rle.area_km2(eoo_poly)

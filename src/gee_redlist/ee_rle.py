@@ -9,10 +9,49 @@ import ee
 from typing import Optional
 
 
+def get_default_ee_projection() -> ee.Projection:
+    """
+    Returns the default projection to use for RLE Assessments.
+
+    Projection ESRI:54034 (World Cylindrical Equal Area)
+    is used based on the grid defined in the document:
+    `Global 10 x 10-km grids suitable for use in IUCN Red List of Ecosystems assessments`
+    available at: https://www.iucnrle.org/rle-material-and-tools
+    """
+
+    wkt1 = """
+        PROJCS["World_Cylindrical_Equal_Area",
+            GEOGCS["WGS 84",
+                DATUM["WGS_1984",
+                    SPHEROID["WGS 84",6378137,298.257223563,
+                        AUTHORITY["EPSG","7030"]],
+                    AUTHORITY["EPSG","6326"]],
+                PRIMEM["Greenwich",0],
+                UNIT["Degree",0.0174532925199433]],
+            PROJECTION["Cylindrical_Equal_Area"],
+            PARAMETER["standard_parallel_1",0],
+            PARAMETER["central_meridian",0],
+            PARAMETER["false_easting",0],
+            PARAMETER["false_northing",0],
+            UNIT["metre",1,
+                AUTHORITY["EPSG","9001"]],
+            AXIS["Easting",EAST],
+            AXIS["Northing",NORTH],
+            AUTHORITY["ESRI","54034"]]
+    """
+    scale = 1e4
+    proj = ee.Projection(
+        crs=wkt1,
+        transform=[scale, 0, 0, 0, scale, 0]
+    )
+    return proj
+
+
 def make_eoo(
     class_img: ee.Image,
     geo: ee.Geometry = None,
-    scale: int = 1,
+    projection: ee.Projection = None,
+    # scale: int = 1,
     max_error: int = 1,
     best_effort: bool = True
 ) -> ee.Geometry:
@@ -45,8 +84,8 @@ def make_eoo(
         geo: The geometry to use for the reduction. Should encompass the area
              of interest for the analysis. If not provided, the geometry will be
              inferred from the class_img.
-        scale: The scale in meters at which to perform the reduction. Default is 1.
-               Larger values will be faster but less precise.
+        projection: The projection to use for the reduction. Default is the 
+                    World Cylindrical Equal_Area projection (ESRI:54034).
         max_error: The maximum error in meters for the convex hull calculation.
                    Default is 1.
         best_effort: If True, uses best effort mode which may be less accurate
@@ -61,7 +100,7 @@ def make_eoo(
         >>> ee.Initialize()
         >>> # Create a binary habitat map
         >>> habitat = ee.Image(1).clip(region)
-        >>> eoo_polygon = make_eoo(habitat, scale=30)
+        >>> eoo_polygon = make_eoo(habitat)
         >>> print(eoo_polygon.area().getInfo())
 
     Note:
@@ -70,6 +109,9 @@ def make_eoo(
         - Value 0 or masked indicates absence (excluded from EOO)
     """
     
+    if projection is None:
+        projection = get_default_ee_projection()
+
     if geo is None:
         geo = class_img.geometry()
 
@@ -79,7 +121,7 @@ def make_eoo(
         class_img
         .updateMask(1)
         .reduceToVectors(
-            scale=scale,
+            crs=projection,
             geometry=geo,
             geometryType='polygon',
             bestEffort=best_effort
