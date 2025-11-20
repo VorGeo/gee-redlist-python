@@ -1,0 +1,30 @@
+{
+    "cSpell.ignoreWords": [
+        // library names
+        "geemap",
+        "matplotlib",
+        "pytest",
+        "rasterio",
+        "scipy",
+        "typer",
+        "wkls",
+        // parameters
+        "figsize",
+        "edgecolor",
+        "ecosys",
+        "cmap",
+        "vmax",
+        "vmin",
+        // other
+        "SRTMGL",
+    ],
+    "cSpell.words": [
+        "basemap",
+        "basemaps",
+        "cartopy",
+        "earthengine",
+        "IUCN",
+        "redlist",
+        "USGS",
+    ]
+}
