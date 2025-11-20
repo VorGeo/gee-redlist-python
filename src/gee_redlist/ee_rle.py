@@ -11,7 +11,7 @@ from typing import Optional
 
 def make_eoo(
     class_img: ee.Image,
-    geo: ee.Geometry,
+    geo: ee.Geometry = None,
     scale: int = 1,
     max_error: int = 1,
     best_effort: bool = True
@@ -43,7 +43,8 @@ def make_eoo(
         class_img: A binary ee.Image where pixels with value 1 represent presence
                    and 0/masked pixels represent absence.
         geo: The geometry to use for the reduction. Should encompass the area
-             of interest for the analysis.
+             of interest for the analysis. If not provided, the geometry will be
+             inferred from the class_img.
         scale: The scale in meters at which to perform the reduction. Default is 1.
                Larger values will be faster but less precise.
         max_error: The maximum error in meters for the convex hull calculation.
@@ -60,8 +61,7 @@ def make_eoo(
         >>> ee.Initialize()
         >>> # Create a binary habitat map
         >>> habitat = ee.Image(1).clip(region)
-        >>> region_geo = region.geometry()
-        >>> eoo_polygon = make_eoo(habitat, region_geo, scale=30)
+        >>> eoo_polygon = make_eoo(habitat, scale=30)
         >>> print(eoo_polygon.area().getInfo())
 
     Note:
@@ -69,6 +69,10 @@ def make_eoo(
         - Value 1 indicates presence (included in EOO)
         - Value 0 or masked indicates absence (excluded from EOO)
     """
+    
+    if geo is None:
+        geo = class_img.geometry()
+
     # Mask the image to only include presence pixels (value = 1)
     # Then reduce to vectors to get all polygons
     eoo_poly = (
