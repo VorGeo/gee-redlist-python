@@ -35,7 +35,7 @@ def make_eoo(
     areas or not. Regions such as oceans (for terrestrial ecosystems), land (for coastal or
     marine ecosystems), or areas outside the study area (such as in a different country)
     must remain included within the minimum convex polygon to ensure that this
-    standardised method is comparable across ecosystem types. In addition, these features
+    standardized method is comparable across ecosystem types. In addition, these features
     contribute to spreading risks across the distribution of the ecosystem by making
     different parts of its distribution more spatially independent.
 
