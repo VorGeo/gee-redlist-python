@@ -121,6 +121,9 @@ def make_eoo(
         )
         .geometry()
         .convexHull(maxError=max_error)
+        # convexHull() is called twice as a workaround for a bug
+        # (https://issuetracker.google.com/issues/465490917)
+        .convexHull(maxError=max_error)
     )
 
     return eoo_poly
