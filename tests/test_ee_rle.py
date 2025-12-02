@@ -48,7 +48,7 @@ class TestMakeEOO:
         # Verify the chain of calls
         mock_image.updateMask.assert_called_once_with(1)
         mock_masked.reduceToVectors.assert_called_once_with(
-            crs=ee_rle.get_default_ee_projection(),
+            scale=1,
             geometry=mock_geo,
             geometryType='polygon',
             bestEffort=True
@@ -85,7 +85,7 @@ class TestMakeEOO:
 
         # Verify custom parameters were passed correctly
         mock_masked.reduceToVectors.assert_called_once_with(
-            crs=ee_rle.get_default_ee_projection(),
+            scale=1,
             geometry=mock_geo,
             geometryType='polygon',
             bestEffort=False
