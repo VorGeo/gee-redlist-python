@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Debug test_map.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/test_map.py",
+                "-v",
+                "-s"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "GOOGLE_CLOUD_PROJECT": "goog-rle-assessments"
+            }
+        },
+        {
+            "name": "Python: Debug Specific Test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/test_map.py::TestCreateCountryMap::test_basic_map_creation",
+                "-v",
+                "-s"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "environment": {
+                "GOOGLE_CLOUD_PROJECT": "goog-rle-assessments"
+            }
+        }
+    ]
+}
