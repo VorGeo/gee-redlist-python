@@ -50,8 +50,6 @@ def get_default_ee_projection() -> ee.Projection:
 def make_eoo(
     class_img: ee.Image,
     geo: ee.Geometry = None,
-    projection: ee.Projection = None,
-    # scale: int = 1,
     max_error: int = 1,
     best_effort: bool = True
 ) -> ee.Geometry:
@@ -84,8 +82,6 @@ def make_eoo(
         geo: The geometry to use for the reduction. Should encompass the area
              of interest for the analysis. If not provided, the geometry will be
              inferred from the class_img.
-        projection: The projection to use for the reduction. Default is the 
-                    World Cylindrical Equal_Area projection (ESRI:54034).
         max_error: The maximum error in meters for the convex hull calculation.
                    Default is 1.
         best_effort: If True, uses best effort mode which may be less accurate
@@ -108,9 +104,6 @@ def make_eoo(
         - Value 1 indicates presence (included in EOO)
         - Value 0 or masked indicates absence (excluded from EOO)
     """
-    
-    if projection is None:
-        projection = get_default_ee_projection()
 
     if geo is None:
         geo = class_img.geometry()
@@ -121,7 +114,7 @@ def make_eoo(
         class_img
         .updateMask(1)
         .reduceToVectors(
-            crs=projection,
+            scale=1,
             geometry=geo,
             geometryType='polygon',
             bestEffort=best_effort
