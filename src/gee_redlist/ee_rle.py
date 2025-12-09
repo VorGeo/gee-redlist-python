@@ -9,9 +9,9 @@ import ee
 from typing import Optional
 
 
-def get_default_ee_projection() -> ee.Projection:
+def get_aoo_grid_projection() -> ee.Projection:
     """
-    Returns the default projection to use for RLE Assessments.
+    Returns the default projection to use for the AOO grid in RLE Assessments.
 
     Projection ESRI:54034 (World Cylindrical Equal Area)
     is used based on the grid defined in the document:
@@ -142,3 +142,55 @@ def area_km2(
         An ee.Number representing the EOO area in square kilometers.
     """
     return eoo_poly.area().divide(1e6)
+
+
+def export_fractional_coverage_on_aoo_grid(
+    class_img: ee.Image,
+    asset_id: str,
+    export_description: str,
+    max_pixels: int = 65536,
+) -> str:
+    """
+    Export the fractional coverage of a binary image on the AOO grid.
+
+    Args:
+        class_img: A binary ee.Image where pixels with value 1 represent presence
+                   and 0/masked pixels represent absence.
+        asset_id: The Earth Engine asset ID to export the fractional coverage to.
+        export_description: The description to use for the export task.
+        max_pixels: The maximum number of pixels to process. Default is 65536.
+
+    Returns:
+        A ee.batch.Task object.
+    """
+
+    fcov_unmasked = class_img.unmask().reduceResolution(
+        reducer=ee.Reducer.mean(),
+        maxPixels=max_pixels
+    ).reproject(get_aoo_grid_projection())
+
+    # Mask out zero values.
+    fractionalCoverage = fcov_unmasked.mask(fcov_unmasked.gt(0))
+
+    task = ee.batch.Export.image.toAsset(
+        image=fractionalCoverage,
+        description=export_description,
+        assetId=asset_id,
+        crs=get_aoo_grid_projection().getInfo()['wkt'],
+        # Set scale to avoid errors:
+        #    with no scale specified, the task fails with:
+        #      "Export too large: specified 2557382439248 pixels (max: 100000000)"
+        #    with scale=10000m:
+        #       "Error: Reprojection output too large (14447x23745 pixels). (Error code: 3)"
+        #    with scale=5000m:
+        #       "Error: Reprojection output too large (14336x15603 pixels). (Error code: 3)"
+        #    with scale=2000m:
+        #       the task succeeds (366 EECU-seconds)
+        #    with scale=1000m:
+        #       the task succeeds (218 EECU-seconds)
+        #    with scale=500m:
+        #       the task succeeds (522 EECU-seconds)
+        scale=1000,
+    )
+    task.start()
+    return task

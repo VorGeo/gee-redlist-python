@@ -203,3 +203,34 @@ class TestIntegrationWithRealEE:
         # Get the actual value and verify it's reasonable
         area_val = area.getInfo()
         assert abs(area_val - 12634.46) < 1
+
+    def test_export_fractional_coverage_on_aoo_grid(self):
+        """Test export_fractional_coverage_on_aoo_grid with real Earth Engine objects."""
+        test_geometry = get_test_geometry()
+
+        # Create a simple binary image covering the test region
+        test_image = ee.Image('projects/goog-rle-assessments/assets/mm_ecosys_v7b').eq(52).selfMask()
+
+        # Call the export function
+        task = ee_rle.export_fractional_coverage_on_aoo_grid(
+            class_img=test_image,
+            asset_id='projects/goog-rle-assessments/assets/integration_test_export',
+            export_description='integration_test_export_fractionalCoverage',
+            max_pixels=65536
+        )
+
+        # Verify a task was returned
+        assert task is not None
+        assert isinstance(task.id, str)
+        assert len(task.id) > 0
+        assert task.task_type == 'EXPORT_IMAGE'
+        # assert task.state in ['READY', 'RUNNING', 'COMPLETED']
+
+        # Verify the task was created in Earth Engine
+        # We can check the task status
+        task_list = ee.batch.Task.list()
+        task_ids = [task.id for task in task_list]
+        assert task.id in task_ids
+
+        # Cancel the task to clean up (we don't actually want to export)
+        task.cancel()
