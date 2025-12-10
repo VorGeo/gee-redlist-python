@@ -5,8 +5,16 @@ This module provides functions for calculating spatial metrics used in
 IUCN Red List of Ecosystems assessments, including Extent of Occurrence (EOO).
 """
 
-import ee
 from typing import Optional
+import yaml
+
+import ee
+
+
+def load_yaml(yaml_path):
+    """Load YAML configuration file."""
+    with open(yaml_path, 'r') as f:
+        return yaml.safe_load(f)
 
 
 def get_aoo_grid_projection() -> ee.Projection:

@@ -1,6 +1,16 @@
 """Earth Engine authentication utilities."""
 
 import ee
+from google.auth import default
+
+
+def initialize_ee():
+    """Initialize Earth Engine."""
+    credentials, _ = default(scopes=[
+        'https://www.googleapis.com/auth/earthengine',
+        'https://www.googleapis.com/auth/cloud-platform'
+    ])
+    ee.Initialize(credentials=credentials, project='goog-rle-assessments')
 
 
 def check_authentication() -> dict[str, bool | str]:
