@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 import ee
 from gee_redlist import ee_rle
+from google.auth import default
 
 
 # Test geometry coordinates - region in Asia
@@ -197,6 +198,57 @@ class TestEnsureAssetFolderExists:
         assert result is True
 
 
+class TestCreateAssetFolder:
+    """Tests for the create_asset_folder function."""
+
+    @patch('gee_redlist.ee_rle.ee.data')
+    def test_create_folder_when_not_exists(self, mock_data):
+        """Test folder creation when folder doesn't exist."""
+        # Setup: getAsset raises exception (folder doesn't exist)
+        mock_data.getAsset.side_effect = ee.EEException('Asset not found')
+        mock_data.createFolder.return_value = {'type': 'FOLDER', 'id': 'test/folder'}
+
+        # Call the function
+        result = ee_rle.create_asset_folder('projects/test/assets/folder')
+
+        # Verify getAsset was called to check existence
+        mock_data.getAsset.assert_called_once_with('projects/test/assets/folder')
+        # Verify createFolder was called
+        mock_data.createFolder.assert_called_once_with('projects/test/assets/folder')
+        # Verify function returns True (folder was created)
+        assert result is True
+
+    @patch('gee_redlist.ee_rle.ee.data')
+    def test_create_folder_when_already_exists(self, mock_data):
+        """Test folder creation when folder already exists."""
+        # Setup: getAsset succeeds (folder exists)
+        mock_data.getAsset.return_value = {'type': 'FOLDER', 'id': 'test/folder'}
+
+        # Call the function
+        result = ee_rle.create_asset_folder('projects/test/assets/folder')
+
+        # Verify getAsset was called
+        mock_data.getAsset.assert_called_once_with('projects/test/assets/folder')
+        # Verify createFolder was NOT called
+        mock_data.createFolder.assert_not_called()
+        # Verify function returns False (folder already existed)
+        assert result is False
+
+    @patch('gee_redlist.ee_rle.ee.data')
+    def test_create_folder_with_ecosystem_path(self, mock_data):
+        """Test folder creation with realistic ecosystem folder path."""
+        # Setup: folder doesn't exist
+        mock_data.getAsset.side_effect = ee.EEException('Asset not found')
+        mock_data.createFolder.return_value = {'type': 'FOLDER'}
+
+        folder_path = 'projects/goog-rle-assessments/assets/MMR-T1_1_2'
+        result = ee_rle.create_asset_folder(folder_path)
+
+        # Verify createFolder was called with the correct path
+        mock_data.createFolder.assert_called_once_with(folder_path)
+        assert result is True
+
+
 class TestIntegrationWithRealEE:
     """Integration tests using real Earth Engine objects (requires authentication)."""
 
@@ -204,7 +256,12 @@ class TestIntegrationWithRealEE:
     def setup_ee(self):
         """Initialize Earth Engine before each test."""
         try:
-            ee.Initialize()
+            # ee.Initialize()
+            credentials, _ = default(scopes=[
+                'https://www.googleapis.com/auth/earthengine',
+                'https://www.googleapis.com/auth/cloud-platform'
+            ])
+            ee.Initialize(credentials=credentials, project='goog-rle-assessments')
         except Exception:
             pytest.skip("Earth Engine not authenticated - skipping integration tests")
 
@@ -317,6 +374,35 @@ class TestIntegrationWithRealEE:
 
             # Second call should find existing folder
             result = ee_rle.ensure_asset_folder_exists(test_folder)
+            assert result is False, "Second call should find existing folder and return False"
+
+        finally:
+            # Clean up: delete the test folder
+            try:
+                ee.data.deleteAsset(test_folder)
+            except Exception:
+                pass  # Ignore errors during cleanup
+
+    def test_create_asset_folder_integration(self):
+        """Integration test for create_asset_folder with real Earth Engine."""
+        import time
+
+        # Use a test folder path that we can safely create and delete
+        test_folder = f'projects/goog-rle-assessments/assets/test_create_folder_{int(time.time())}'
+
+        try:
+            # First call should create the folder
+            result = ee_rle.create_asset_folder(test_folder)
+            assert result is True, "First call should create folder and return True"
+
+            # Verify folder was actually created by checking it exists
+            asset_info = ee.data.getAsset(test_folder)
+            assert asset_info is not None, "Folder should exist after creation"
+            assert asset_info['type'] == 'FOLDER', "Asset should be of type FOLDER"
+            assert test_folder in asset_info['name'], "Asset name should match test folder path"
+
+            # Second call should find existing folder
+            result = ee_rle.create_asset_folder(test_folder)
             assert result is False, "Second call should find existing folder and return False"
 
         finally:
