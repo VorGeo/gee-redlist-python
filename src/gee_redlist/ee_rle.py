@@ -144,11 +144,40 @@ def area_km2(
     return eoo_poly.area().divide(1e6)
 
 
+def ensure_asset_folder_exists(folder_path: str) -> bool:
+    """
+    Check if an Earth Engine asset folder exists, create it if it doesn't.
+
+    Args:
+        folder_path: Full path to the asset folder
+                     (e.g., 'projects/goog-rle-assessments/assets/MMR-T1_1_1')
+
+    Returns:
+        True if the folder was created, False if it already existed.
+
+    Example:
+        >>> import ee
+        >>> ee.Initialize()
+        >>> ensure_asset_folder_exists('projects/my-project/assets/my-folder')
+        True  # Folder was created
+        >>> ensure_asset_folder_exists('projects/my-project/assets/my-folder')
+        False  # Folder already exists
+    """
+    try:
+        ee.data.getAsset(folder_path)
+        return False  # Folder already exists
+    except ee.EEException:
+        # Folder doesn't exist, create it
+        ee.data.createFolder(folder_path)
+        return True  # Folder was created
+
+
 def export_fractional_coverage_on_aoo_grid(
     class_img: ee.Image,
     asset_id: str,
     export_description: str,
     max_pixels: int = 65536,
+    create_folder: bool = True,
 ) -> str:
     """
     Export the fractional coverage of a binary image on the AOO grid.
@@ -159,10 +188,20 @@ def export_fractional_coverage_on_aoo_grid(
         asset_id: The Earth Engine asset ID to export the fractional coverage to.
         export_description: The description to use for the export task.
         max_pixels: The maximum number of pixels to process. Default is 65536.
+        create_folder: If True, ensures the parent folder exists before export.
+                       Default is True.
 
     Returns:
         A ee.batch.Task object.
     """
+
+    # Ensure the parent folder exists if requested
+    if create_folder:
+        # Extract folder path from asset_id
+        # e.g., 'projects/goog-rle-assessments/assets/MMR-T1_1_1/a00_grid'
+        #    -> 'projects/goog-rle-assessments/assets/MMR-T1_1_1'
+        folder_path = '/'.join(asset_id.split('/')[:-1])
+        ensure_asset_folder_exists(folder_path)
 
     fcov_unmasked = class_img.unmask().reduceResolution(
         reducer=ee.Reducer.mean(),
