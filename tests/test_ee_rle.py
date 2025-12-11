@@ -63,6 +63,7 @@ class TestMakeEOO:
             scale=100,  # Should use the nominal scale (100m)
             geometry=mock_geo,
             geometryType='polygon',
+            maxPixels=1e12,  # Default maxPixels parameter
             bestEffort=False  # Default changed from True to False
         )
         mock_vectors.geometry.assert_called_once()
@@ -105,6 +106,7 @@ class TestMakeEOO:
             scale=50,  # Should use minimum of 50m (not the 30m nominal scale)
             geometry=mock_geo,
             geometryType='polygon',
+            maxPixels=1e12,  # Default maxPixels parameter
             bestEffort=True  # Custom parameter
         )
         # convexHull is called twice, check it was called with custom maxError

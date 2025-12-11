@@ -59,6 +59,7 @@ def make_eoo(
     class_img: ee.Image,
     geo: ee.Geometry = None,
     scale: int = None,
+    max_pixels: int = 1e12,
     max_error: int = 1,
     best_effort: bool = False
 ) -> ee.Geometry:
@@ -94,6 +95,7 @@ def make_eoo(
         scale: The scale (in meters) for reducing the image pixels to polygons.
                If not provided, the image's nominal scale will be used.
                If the scale is less than 50 meters per pixel, 50 meters per pixel will be used.
+        max_pixels: The maximum number of pixels to process. Default is 1e12.
         max_error: The maximum error in meters for the convex hull calculation.
                    Default is 1.
         best_effort: If True, uses best effort mode which may be less accurate
@@ -134,6 +136,7 @@ def make_eoo(
             scale=scale,
             geometry=geo,
             geometryType='polygon',
+            maxPixels=max_pixels,
             bestEffort=best_effort,
         )
         .geometry()
