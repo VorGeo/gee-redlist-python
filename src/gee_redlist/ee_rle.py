@@ -58,8 +58,9 @@ def get_aoo_grid_projection() -> ee.Projection:
 def make_eoo(
     class_img: ee.Image,
     geo: ee.Geometry = None,
+    scale: int = None,
     max_error: int = 1,
-    best_effort: bool = True
+    best_effort: bool = False
 ) -> ee.Geometry:
     """
     Calculate the Extent of Occurrence (EOO) polygon from a binary image.
@@ -90,10 +91,13 @@ def make_eoo(
         geo: The geometry to use for the reduction. Should encompass the area
              of interest for the analysis. If not provided, the geometry will be
              inferred from the class_img.
+        scale: The scale (in meters) for reducing the image pixels to polygons.
+               If not provided, the image's nominal scale will be used.
+               If the scale is less than 50 meters per pixel, 50 meters per pixel will be used.
         max_error: The maximum error in meters for the convex hull calculation.
                    Default is 1.
         best_effort: If True, uses best effort mode which may be less accurate
-                     but more likely to succeed for large areas. Default is True.
+                     but more likely to succeed for large areas. Default is False.
 
     Returns:
         An ee.Geometry representing the convex hull (EOO polygon) of all
@@ -116,16 +120,21 @@ def make_eoo(
     if geo is None:
         geo = class_img.geometry()
 
+    # Set the scale (in meters) for reducing the image pixels to polygons.
+    # Use the image's nominal scale unless is is less than 50 meters per pixel.
+    if scale is None:
+        scale = max(class_img.projection().nominalScale().getInfo(), 50)
+
     # Mask the image to only include presence pixels (value = 1)
     # Then reduce to vectors to get all polygons
     eoo_poly = (
         class_img
         .updateMask(1)
         .reduceToVectors(
-            scale=1,
+            scale=scale,
             geometry=geo,
             geometryType='polygon',
-            bestEffort=best_effort
+            bestEffort=best_effort,
         )
         .geometry()
         .convexHull(maxError=max_error)
